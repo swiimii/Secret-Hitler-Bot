@@ -1,5 +1,5 @@
 import discord
-from classes import shGame
+from classes import shGame, Pile, Player, Policy
 
 client = discord.Client()
 
@@ -8,10 +8,17 @@ async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author == client.user:
         return
+    # Debug code
+    # if message.content.startswith('sh-servers'):
+    #     msg = ""
+    #     for server in shGame.gameServers:
+    #         for player in server.players:
+    #             msg += player.name
+    #     await client.send_message(message.channel, msg)
 
     # Check if the bot is working ---- Switch to "help" function?
     if message.content.startswith('sh-help'):
-        msg = '''Welcome to Secret Hitler!\nCommands:
+        msg = '''Welcome to Secret Hitler!\nCommands: 
     **sh-start**: Start a game
     **sh-cleanup**: end current game (admin)
     **sh-players**: display who's in a game right now
@@ -34,15 +41,16 @@ Notes:
     if message.content.startswith('sh-begin'):
         game = await shGame.getGame(message)
         if game and message.channel == game.channel:
-            if len(game.players) > 4:
-                await game.startGame()
-            else:
-                await client.send_message(message.channel, "5 player minimum for a game")
+            #if len(game.players) > 4:
+            await game.startGame()
+            #else:
+                #await client.send_message(message.channel, "5 player minimum for a game")
 
     # Clean up empty servers, to allow the start of a new game
     if message.content.startswith('sh-cleanup'):
         if message.author.server_permissions.administrator:
             await shGame.shCleanup(client,message)
+            game = False
         else: # User is not an admin
             await client.send_message(message.channel, "You need admin permissions to do this.")
 

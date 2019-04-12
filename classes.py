@@ -13,7 +13,7 @@ class shGame:
         self.server = message.server
 
         #game instance variables
-        self.players = [Player(message.author)]
+        self.players = [] + [message.author]
         self.fascists = []
         self.liberals = []
         self.hitler = "none"
@@ -33,6 +33,7 @@ class shGame:
         self.client = client
 
     async def createGame(client,message):
+
         server = message.author.server
         everyone = discord.PermissionOverwrite(read_messages=False)
 
@@ -43,7 +44,6 @@ class shGame:
         await shGame.shCleanup(client, message)
         channel = await client.create_channel(server, 'secret-hitler-game', (server.default_role, everyone), (server.me, bot))
         thisGame = shGame(client, message, channel)
-        shGame.gameServers += [thisGame]
         await thisGame.announceGame(message)
 
         #populate policy pile
@@ -52,8 +52,8 @@ class shGame:
                 team = 1 # liberal
             else:
                 team = 0 # fascist
-            self.policyPile.policies += Pile(team)
-        self.policyPile.shuffle()
+            thisGame.policyPile.policies += [Policy(team)]
+        thisGame.policyPile.shuffle()
 
 
 
@@ -61,10 +61,10 @@ class shGame:
         self.inProgress = True
         self.events += ("Game Started", time.time())
         #define player roles & notify those players
-        await assignPlayerRoles()
+        await self.assignPlayerRoles()
 
         #select a president
-        self.president = self.players[randint(0,len(players)-1)]
+        self.president = self.players[random.randint(0,len(self.players)-1)]
         await callForAction("Select Chancellor")
 
     async def callForAction(self, reason):
@@ -84,18 +84,24 @@ class shGame:
 
     async def assignPlayerRoles(self):
         #assign team ratios
-        await definePlayerRatios()
+        await self.definePlayerRatios()
 
         # assign roles
 
         players = list(self.players) #create separate list of players
         while players != []:
-            if len(self.liberals) < self.liberalsNumber:
-                self.liberals += players.pop(random.randint(0,len(players)-1))
-            elif len(self.fascists) < self.fascistsNumber:
-                self.fascists += players.pop(random.randint(0,len(players)-1))
-        #select hitler at random from fascists
-        self.hitler = self.fascists[random.randint(0,len(players)-1)]
+            if True: #len(self.fascists) < self.fascistsNumber:
+                self.fascists += [players.pop(random.randint(0,len(players)-1))]
+            elif len(self.liberals) < self.liberalsNumber:
+                self.liberals += [players.pop(random.randint(0,len(players)-1))]
+
+        # Choose hitler. First player was chosen at random, so this is random
+        msg =""
+        for p in self.fascists:
+            msg += p.name
+        await self.client.send_message(self.channel, msg)
+        self.hitler = self.fascists[0]
+        # self.hitler = self.fascists[random.randint(0,len(players)-1)]
 
 
     async def isRecent(self):
@@ -109,21 +115,24 @@ class shGame:
             overwrite.read_messages = True
             overwrite.send_message = not self.inProgress
             await self.client.edit_channel_permissions(self.channel, message.author, overwrite)
+        else:
+            await self.client.send_message(message.channel, "You are already in this game!")
 
     #remove all secret hitler game instances in the server which have non-recent last events
     async def shCleanup(client,message):
         cleaned = False
         game = await shGame.getGame(message)
         if game:
-            # await client.delete_channel(game.channel)
+            shGame.gameServers.remove(game)
             cleaned = True
         for c in message.server.channels:
             if c.name == 'secret-hitler-game':
                 await client.delete_channel(c)
-                cleaned = True
+                # cleaned = True
                 break
-        # if cleaned and message: # if the channel still exists
-        #     await client.send_message(message.channel, "Cleaned up.")
+        if cleaned and message: # if the channel still exists
+            await client.send_message(message.channel, "Cleaned up.")
+        return True
 
     async def removePlayer(self, message):
         if message.author in self.players:
@@ -143,8 +152,8 @@ class shGame:
 
 
     async def definePlayerRatios(self):
-        self.fascistsNumber = len(players) // 2 - 1
-        self.liberalsNumber = len(players) - self.fascistsNumber
+        self.fascistsNumber = len(self.players) // 2 - 1
+        self.liberalsNumber = len(self.players) - self.fascistsNumber
         # Randomly add a number of players to each team, according to these ratios
 
 
@@ -159,37 +168,37 @@ class shGame:
 
     #helper classes
 
-    class Policy:
-        def __init__(self,team):
-            self.team = team # Team is a number - 0 for fascist, 1 for liberal
+class Policy:
+    def __init__(self,team):
+        self.team = team # Team is a number - 0 for fascist, 1 for liberal
 
-            def __repr__(self):
-                if team == 1:
-                    return "Liberal"
-                elif team == 0:
-                    return "Fascist"
-                else:
-                    return "Error"
-
-    class Pile:
-        def __init__(self):
-            self.policies = []
-        def shuffle(self):
-            newPile = []
-            for p in policies:
-                index = random.randint(0, len(self.policies)-1)
-                newPile += policies[index]
-            self.policies = newPile
-        def combine(self,other):
-            self.policies += other.policies
-            other.policies = []
-            self.shuffle()
-
-
-    class Player:
-        def __init__(self, user):
-            self.team = "none"
-            self.vote = "none"
-            self.player = user
         def __repr__(self):
-            return self.player
+            if team == 1:
+                return "Liberal"
+            elif team == 0:
+                return "Fascist"
+            else:
+                return "Error"
+
+class Pile:
+    def __init__(self):
+        self.policies = []
+    def shuffle(self):
+        newPile = []
+        for p in self.policies:
+            index = random.randint(0, len(self.policies)-1)
+            newPile += [self.policies[index]]
+        self.policies = newPile
+    def combine(self,other):
+        self.policies += other.policies
+        other.policies = []
+        self.shuffle()
+
+
+class Player:
+    def __init__(self, user):
+        self.team = "none"
+        self.vote = "none"
+        self.player = user
+    def __repr__(self):
+        return self.player
