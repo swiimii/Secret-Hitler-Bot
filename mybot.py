@@ -8,6 +8,7 @@ async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author == client.user:
         return
+
     # Debug code
     # if message.content.startswith('sh-servers'):
     #     msg = ""
@@ -17,8 +18,20 @@ async def on_message(message):
     #     await client.send_message(message.channel, msg)
 
     # Check if the bot is working ---- Switch to "help" function?
+    if message.channel.type == discord.ChannelType.private:
+        # User sent a private command to the bot
+        for game in shGame.gameServers:
+            for player in [game.players.content[i] for i in range(0,len(game.players.content)) if game.players.content[i].user == message.author]:
+                if not player.game.inProgress:
+                    await client.send_message(message.channel, "Your game isn't in progress!")
+                else:
+                    await game.resolvePlayerInput(message, player)
+
+        # else:
+            # await client.send_message(message.channel, "It appears you're not in a game. Once you're in a game, private message me in order to vote, among other things.")
+
     if message.content.startswith('sh-help'):
-        msg = '''Welcome to Secret Hitler!\nCommands: 
+        msg = '''Welcome to Secret Hitler!\nCommands:
     **sh-start**: Start a game
     **sh-cleanup**: end current game (admin)
     **sh-players**: display who's in a game right now
@@ -87,10 +100,10 @@ async def shStart(message):
 async def displayPlayers(message):
     game = await shGame.getGame(message)
     if game:
-        if game.players is not []:
+        if game.players.content is not []:
             msg = 'The players are'
-            for player in game.players:
-                msg += ", " + player.name
+            for player in game.players.content:
+                msg += ", " + player.user.name
             msg += '.'
             await client.send_message(message.channel, msg)
         else:
