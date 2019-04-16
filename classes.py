@@ -4,7 +4,7 @@ import time
 
 class shGame:
     gameServers = [] # list of Game instances
-    gameTimeout = 600 # time before a game will be caught by cleanup
+    gameTimeout = 600 # time before a game will be caught by cleanup -- 10 minutes
 
     def __init__(self,client,message, gamechannel):
         #server instance variables
@@ -26,7 +26,9 @@ class shGame:
         self.awaitingAction = "Begin Game"
 
         self.fascistsPolicies = 0
+        self.maxFascists = 6
         self.liberalPolicies = 0
+        self.maxLiberals = 5
         self.chaosTracker = 0
         self.policyPile = Pile()
         self.discardPile = Pile()
@@ -36,14 +38,16 @@ class shGame:
 
     async def createGame(client,message):
 
+        #if there is a finished game or a sh channel from a crashed/closed bot, clean up
+        await shGame.shCleanup(client, message)
+
         server = message.author.server
         everyone = discord.PermissionOverwrite(read_messages=False)
 
         bot = discord.PermissionOverwrite()
         bot.send_message = True
         bot.read_messages = True
-        #if there is a finished game or a sh channel from a crashed/closed bot, clean up
-        await shGame.shCleanup(client, message)
+
         channel = await client.create_channel(server, 'secret-hitler-game', (server.default_role, everyone), (server.me, bot))
         thisGame = shGame(client, message, channel)
         await thisGame.announceGame(message)
@@ -53,7 +57,7 @@ class shGame:
             if i < 6:
                 team = "Liberal" # liberal
             else:
-                team = "Facist" # fascist
+                team = "Fascist" # fascist
             thisGame.policyPile.content += [Policy(team)]
         thisGame.policyPile.shuffle()
 
@@ -65,9 +69,8 @@ class shGame:
         #define player roles & notify those players
         await self.assignPlayerRoles()
 
-        #select a president
-        self.president = self.players.content[random.randint(0,len(self.players.content)-1)]
         self.players.shuffle() # Prevent teams from being predictable
+        self.president = self.players.content[0] #select a president
         await self.callForAction("Select Chancellor")
 
     async def callForAction(self, reason):
@@ -77,15 +80,14 @@ class shGame:
         if reason == "Select Chancellor":
             await self.client.send_message(self.channel, "{0.mention}, please select a chancellor. Copy the ID of the player you want to select, then type 'select #################' in my DMs".format(self.president.user))
         elif reason == "Vote On Government":
-            await self.client.send_message(self.channel, "Everyone, please vote on this government. Vote by sending 'vote y' / 'vote n' to this bot in a DM. The votes will finalize after everyone's voted.")
+            await self.client.send_message(self.channel, "{0} has selected {1} as their chancellor.".format(self.president.user.mention, self.chancellor.user.mention))
+            await self.client.send_message(self.channel, "Vote yes or no to this government, by DMing me **vote yes** or **vote no**.")
+        elif reason == "President Discard":
+            await self.client.send_message(self.channel, "{0.mention}, please discard a policy. I've sent you a DM.".format(self.president.user))
+        elif reason == "Chancellor Discard":
+            await self.client.send_message(self.channel, "{0.mention}, please discard one of the cards given to you by the President.".format(self.chancellor.user))
 
-
-    async def receiveVote(message):
-        for game in shGame.gameServers:
-            if message.author in [player.user for player in self.players.content]:
-                True
-                # receive a vote in dms
-
+    # Private Message received by the bot
     async def resolvePlayerInput(self, message, player):
         if message.content.startswith("vote"):
             if "Vote" in self.awaitingAction:
@@ -103,15 +105,14 @@ class shGame:
                 #set player with ID to chancellor, move to next phase
                 idInput = message.content.split(' ')[1]
                 found = False
-                for player in self.players.content:
-                    if player.user.id == idInput:
+                for p in self.players.content:
+                    if p.user.id == idInput:
                         found = True
-                        self.chancellor = player
-                        self.awaitingAction = "Vote On Government"
-                        await self.client.send_message(self.channel, "{0} has selected {1} as their chancellor.".format(self.president.user.mention, self.chancellor.user.mention))
-                        await self.client.send_message(self.channel, "Vote yes or no to this government, by DMing me **vote yes** or **vote no**.")
+                        self.chancellor = p
+                        await self.callForAction("Vote On Government")
+
                 if not found:
-                    await self.client.send_message(self.channel, "Copy a user's ID, then type 'select ######' here.")
+                    await self.client.send_message(message.channel, "Copy a user's ID, then type 'select ######' here.")
             elif "Select Ability" in self.awaitingAction and message.author == self.president.user:
                 True #resolve ability, and do what's necessary to proceed
             else: #Not waiting on this player to select
@@ -124,34 +125,60 @@ class shGame:
                 success = False
 
                 if str(input) == '1':
-                    self.policyPile.pop(0)
+                    self.discardPile.content += [self.policyPile.content.pop(0)]
                     success = True
                 elif str(input) == '2':
-                    self.policyPile.pop(1)
+                    self.discardPile.content += [self.policyPile.content.pop(1)]
                     success = True
                 elif str(input) == '3':
-                    self.policyPile.pop(2)
+                    self.discardPile.content += [self.policyPile.content.pop(2)]
                     success = True
                 else:
-                    await client.send_message(message.channel, "Type 'discard #', with a number between 1 and 3, to discard a policy")
+                    await self.client.send_message(message.channel, "Type 'discard #', with a number between 1 and 3, to discard a policy")
 
                 if success:
-                    await client.send_message(message.channel, "Discard successful")
-                    await client.send_message(self.channel, "The president has discarded a policy. {0}, please discard a policy.".format(self.chancellor.user.mention))
-                    self.awaitingAction = "Chancellor Discard"
+                    await self.client.send_message(message.channel, "Discard successful")
+                    await self.client.send_message(self.channel, "The president has discarded a policy. {0}, please discard a policy.".format(self.chancellor.user.mention))
+                    await self.callForAction("Chancellor Discard")
                     await self.revealPolicies("Chancellor")
 
-            elif "Chancellor Discard" in self.awaitingAction and message.author is self.chancellor.user:
+            elif "Chancellor Discard" in self.awaitingAction and message.author == self.chancellor.user:
                 input = message.content.split(' ')[1]
                 success = False
 
                 if str(input) == '1':
-                    self.policyPile.pop(0)
+                    self.discardPile.content += [self.policyPile.content.pop(0)]
                     success = True
                 elif str(input) == '2':
-                    self.policyPile.pop(1)
+                    self.discardPile.content += [self.policyPile.content.pop(1)]
                     success = True
 
+
+                if success:
+                    await self.client.send_message(message.channel, "Discard successful")
+                    await self.client.send_message(self.channel, "{0} has discarded a policy. A {1} policy has been added to the board.".format(self.chancellor.user.mention, self.policyPile.content[0].team))
+                    if self.policyPile.content[0].team == "Fascist":
+                        power = True
+                        self.fascistsPolicies += 1
+                    elif self.policyPile.content[0].team == "Liberal":
+                        power = False
+                        self.liberalPolicies += 1
+                    if power:
+                        True #do power according to number of fascist policies played
+                    self.policyPile.content.pop(0) # This policy is now considered part of the board
+                    await self.resetGovernment(success)
+                    await self.displayTracks()
+                    await self.callForAction("Select Chancellor")
+
+    async def resetGovernment(self, success):
+        self.previousGovernment = [self.president, self.chancellor]
+        self.president = self.players.content[(self.players.content.index(self.president) + 1) % len(self.players.content)]
+        self.chancellor = 'none'
+
+
+    async def displayTracks(self):
+        msg = "There are now {0}/{1} liberal policies, and {2}/{3} fascist policies.".format(self.liberalPolicies, self.maxLiberals, self.fascistsPolicies, self.maxFascists)
+        await self.client.send_message(self.channel, msg)
 
 
     async def checkVotes(self):
@@ -180,19 +207,20 @@ class shGame:
             await self.failGovernment()
 
     async def revealVotes(self):
+        msg = "The votes are in! These are the results:\n"
         for player in self.players.content:
-            msg = "" + player.user.mention + ", " + player.vote + "\n"
+            msg += "\t" + player.user.mention + ", " + player.vote + "\n"
         await self.client.send_message(self.channel, msg)
 
 
     async def revealPolicies(self, target):
         if target == "President":
-            msg = "The top three policies are 1: " + self.policyPile.content[0] + ", 2: " + self.policyPile.content[1]  + ", 3: " + self.policyPile.content[2] + "."
-            msg += "Tell me 'discard #' and a number between 1 and 3, to discard on the policies. The remaining policies will be send to the chancellor."
+            msg = "The top three policies are 1: " + self.policyPile.content[0] + ", 2: " + self.policyPile.content[1]  + ", 3: " + self.policyPile.content[2] + ".\n"
+            msg += "Tell me 'discard #' and a number between 1 and 3, to **discard** that policy. The remaining policies will be send to the chancellor."
             await self.client.send_message(self.president.user, msg)
         elif target == "Chancellor":
-            msg = "The policies given to you by the president are 1: " + self.policyPile.content[0] + ", 2: " + self.policyPile.content[1]  + "."
-            msg += "Tell me 'discard #' and a number between 1 and 2, to discard on the policies. The remaining policies will be send to the chancellor."
+            msg = "The policies given to you by the president are 1: " + self.policyPile.content[0] + ", 2: " + self.policyPile.content[1]  + ".\n"
+            msg += "Tell me 'discard #' and a number between 1 and 2, to discard that policy. The remaining policy will be locked in, and revealed."
             await self.client.send_message(self.chancellor.user, msg)
 
         elif target == "Everyone":
