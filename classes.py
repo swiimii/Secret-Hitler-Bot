@@ -50,7 +50,6 @@ class shGame:
 
         channel = await client.create_channel(server, 'secret-hitler-game', (server.default_role, everyone), (server.me, bot))
         thisGame = shGame(client, message, channel)
-        await thisGame.announceGame(message)
 
         #populate policy pile
         for i in range(17): #0-16 - in a game of secret hitler, there are 6 liberal policies, and 11 fascist policies
@@ -60,7 +59,7 @@ class shGame:
                 team = "Fascist" # fascist
             thisGame.policyPile.content += [Policy(team)]
         thisGame.policyPile.shuffle()
-
+        await thisGame.announceGame(message)
 
 
     async def startGame(self):
@@ -168,10 +167,22 @@ class shGame:
                     self.policyPile.content.pop(0) # This policy is now considered part of the board
                     await self.resetGovernment(success)
                     await self.displayTracks()
+                    #check if game is over
+                    progressMessage = await self.checkGameOver()
+                    if "Win" in progressMessage:
+                        await self.client.send_message(self.channel, progressMessage + " Start a new game by typing **sh-start**.")
+                        return True
+
+                    msg = "There are {0} cards left in the draw pile. ".format(len(self.policyPile.content))
+                    if len(self.policyPile.content) < 3:
+                        self.policyPile.combine(self.discardPile)
+                        msg += "Therefore the pile will be shuffled now."
+                    await self.client.send_message(self.channel, msg)
                     await self.callForAction("Select Chancellor")
 
     async def resetGovernment(self, success):
-        self.previousGovernment = [self.president, self.chancellor]
+        if success:
+            self.previousGovernment = [self.president, self.chancellor]
         self.president = self.players.content[(self.players.content.index(self.president) + 1) % len(self.players.content)]
         self.chancellor = 'none'
 
@@ -179,6 +190,22 @@ class shGame:
     async def displayTracks(self):
         msg = "There are now {0}/{1} liberal policies, and {2}/{3} fascist policies.".format(self.liberalPolicies, self.maxLiberals, self.fascistsPolicies, self.maxFascists)
         await self.client.send_message(self.channel, msg)
+
+    async def checkGameOver(self):
+        if self.hitler in self.deadPlayers:
+            self.inProgress = False
+            self.awaitingAction = "None"
+            return "**Liberals Win!**"
+        elif self.liberalPolicies >= self.maxLiberals:
+            self.inProgress = False
+            self.awaitingAction = "None"
+            return "**Liberals Win!**"
+        elif self.fascistsPolicies >= self.maxFascists:
+            self.inProgress = False
+            self.awaitingAction = "None"
+            return "**Fascists Win!**"
+        else:
+            return "Resume"
 
 
     async def checkVotes(self):
@@ -201,6 +228,9 @@ class shGame:
         await self.resetVotes()
         #Players only vote on governments
         if success:
+            #Move to discard phase
+            #check if decks need to be combined
+
             self.awaitingAction = "President Discard"
             await self.revealPolicies("President")
         else:
@@ -323,10 +353,12 @@ class shGame:
 
 
     async def announceGame(self,message):
-        announcemsg = """A Secret Hitler game is starting! \nType **sh-join** to join in! """
-        await self.client.send_message(message.channel,announcemsg)
         newgamemsg = """Welcome to Secret Hitler, \nOnce everybody's in, type \n**sh-begin** to start the game! """
         await self.client.send_message(self.channel,newgamemsg)
+
+        announcemsg = """A Secret Hitler game is starting! \nType **sh-join** to join in! """
+        await self.client.send_message(message.channel,announcemsg)
+
 
 
 
