@@ -44,7 +44,9 @@ Notes:
 
     * 5 players minimum per game
 
-    * One game per server! '''
+    * One game per server!
+
+    * The I must be given the following permissions in order to work properly: Read/see channels, **manage channels**, **manage roles**, send messages. '''
         await client.send_message(message.channel, msg)
 
     # Start a game
@@ -53,7 +55,7 @@ Notes:
 
     if message.content.startswith('sh-begin'):
         game = await shGame.getGame(message)
-        if game and message.channel == game.channel:
+        if game and message.channel == game.channel and message.author in [player.user for player in game.players.content]:
             #if len(game.players) > 4:
             await game.startGame()
             #else:

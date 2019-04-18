@@ -1,0 +1,3 @@
+1: Implement Chaos Tracker
+2: Create powers, based on number of Players
+3: Change the required number of fascist policies, depending on number of Players
