@@ -56,7 +56,8 @@ Notes:
     if message.content.startswith('sh-begin'):
         game = await shGame.getGame(message)
         if game and message.channel == game.channel and message.author in [player.user for player in game.players.content]:
-            #if len(game.players) > 4:
+            #TODO: ->
+            #if len(game.players.content) > 4:
             await game.startGame()
             #else:
                 #await client.send_message(message.channel, "5 player minimum for a game")

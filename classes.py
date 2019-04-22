@@ -4,7 +4,7 @@ import time
 
 class shGame:
     gameServers = [] # list of Game instances
-    gameTimeout = 420 # time before a game will be caught by cleanup -- 10 minutes
+    gameTimeout = 420 # time before a game will be caught by cleanup -- 6 minutes
 
     def __init__(self,client,message, gamechannel):
         #server instance variables
@@ -20,7 +20,7 @@ class shGame:
         self.deadPlayers = []
         self.president = "none"
         self.chancellor = "none"
-        self.previousGovernment = []
+        self.previousGovernment = ['none', 'none']
         self.votes = "none"
         self.governmentApproved = False
         self.awaitingAction = "Begin Game" #Very important - This variable allows the code below to know what aspect of the game is currently taking place
@@ -48,11 +48,13 @@ class shGame:
         server = message.author.server
         everyone = discord.PermissionOverwrite(read_messages=False)
 
-        bot = discord.PermissionOverwrite()
-        bot.send_message = True
-        bot.read_messages = True
+        botAndPlayer = discord.PermissionOverwrite()
+        botAndPlayer.send_message = True
+        botAndPlayer.read_messages = True
 
-        channel = await client.create_channel(server, 'secret-hitler-game', (server.default_role, everyone), (server.me, bot))
+        channel = await client.create_channel(server, 'secret-hitler-game', (server.default_role, everyone), (server.me, botAndPlayer))
+        await client.edit_channel_permissions(channel, message.author, botAndPlayer)
+
         thisGame = shGame(client, message, channel)
 
         #populate policy pile
@@ -80,6 +82,12 @@ class shGame:
         await self.setAbilities()
 
         self.players.shuffle() # Prevent teams from being predictable
+
+        await self.displayPowers()
+
+        await self.displayTracks()
+
+
         self.president = self.players.content[0] #select a president
         await self.callForAction("Select Chancellor")
 
@@ -91,7 +99,7 @@ class shGame:
 
         # Actions taken during elections and special elections
         if "Select Chancellor" in reason:
-            await self.client.send_message(self.channel, "--------------------\n{0.mention}, please select a chancellor. Copy the ID of the player you want to select, then type 'select #################' in my DMs".format(self.president.user))
+            await self.client.send_message(self.channel, "--------------------\n{0.mention}, please select a chancellor. Copy the ID or Nickname of the player you want to select, then type **select name** in my DMs".format(self.president.user))
         elif "Vote On Government" in reason:
             await self.client.send_message(self.channel, "--------------------\n{0} has selected {1} as their chancellor.".format(self.president.user.mention, self.chancellor.user.mention))
             await self.client.send_message(self.channel, "Vote yes or no to this government, by DMing me **vote yes** or **vote no**.")
@@ -101,27 +109,27 @@ class shGame:
             await self.client.send_message(self.channel, "--------------------\n{0.mention}, please discard one of the cards given to you by the President.".format(self.chancellor.user))
 
         # Ability action calls
-        elif reason == "Ability: Nothing":
+        elif reason == "Ability:Nothing":
             await self.client.send_message(self.channel, "--------------------\nThere are no presidential abilities this round")
             await self.resetGovernment(True)
             await self.callForAction("Select Chancellor")
 
-        elif reason == "Ability: PolicyPeek":
+        elif reason == "Ability:PolicyPeek":
             await self.client.send_message(self.channel, "--------------------\n{0.mention} has been DM'd a list of the top three cards in the policy pile. ".format(self.president.user))
             # Policy peek requires no action, however other abilities do. This allows for abilities to be used as a list
             await self.policyPeek(False)
 
-        elif reason == "Ability: Investigate":
-            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to investigate by DMing me their ID using **select ####**. You will receive a message telling you what team they're on.".format(self.president.user))
+        elif reason == "Ability:Investigate":
+            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to investigate by DMing me their ID or Nickname using **select username**. You will receive a message telling you what team they're on.".format(self.president.user))
 
-        elif reason == "Ability: SpecialElection":
-            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Elect a player to be president in a Special Election using **select ####**. DM me their ID using **select ####**".format(self.president.user))
+        elif reason == "Ability:SpecialElection":
+            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Elect a player to be president in a Special Election using **select username**. DM me their ID or Nickname using **select username**".format(self.president.user))
 
-        elif reason == "Ability: SpecialExecution":
-            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to kill by DMing me their ID using **select ####**. If hitler dies, the Liberals win.".format(self.president.user))
+        elif reason == "Ability:SpecialExecution":
+            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to kill by DMing me their ID or Nickname using **select username**. If hitler dies, the Liberals win.".format(self.president.user))
 
-        elif reason == "Ability: Execute":
-            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to kill by DMing me their ID using **select ####**. If hitler dies, the Liberals win.".format(self.president.user))
+        elif reason == "Ability:Execute":
+            await self.client.send_message(self.channel, "--------------------\n{0.mention}, you now have an ability. Select a player to kill by DMing me their ID or Nickname using **select username**. If hitler dies, the Liberals win.".format(self.president.user))
 
         elif reason == "Veto":
             await self.client.send_message(self.channel, "--------------------\n{0.mention} has asked for a veto. You can allow a veto by DMing me **yes**, or deny the veto by DMing me **no**. If the veto is denied, the chancellor will be forced to play option 1.".format(self.president.user))
@@ -140,37 +148,39 @@ class shGame:
                     await self.client.send_message(message.channel, "No Vote received")
                     await self.checkVotes()
                 else:
-                    await self.client.send_message(message.channel, "Vote on this government by typing 'vote yes' or 'vote no'.")
+                    await self.client.send_message(message.channel, "Vote on this government by typing **vote yes** or **vote no**.")
 
 
 
         elif message.content.startswith("select"):
 
             # There is a presidential ability in play
-            if "Ability: " in self.awaitingAction:
+            if "Ability:" in self.awaitingAction:
                 if message.author == self.president.user:
-                    idInput = message.content.split(' ')[-1]
+                    splitIndex = message.content.index(' ')
+                    idInput = message.content[splitIndex+1:]
                     found = False
                     for p in self.players.content:
-                        if p.user.id == idInput:
+                        if p.user.id == idInput or p.user.name == idInput:
                             abilityName = self.awaitingAction.split(' ')[1]
-                            await self.addEvent("Ability: " + abilityName)
+                            await self.addEvent("Ability:" + abilityName)
                             found = True
                             ability = self.ablilitiesDict[abilityName]
                             await ability(p) # President selected player p for their fascist ability
 
                     if not found:
-                        await self.client.send_message(message.channel, "Copy a user's ID, then type 'select ######' here.")
+                        await self.client.send_message(message.channel, "Copy a user's ID or Nickname, then type **select username** here.")
 
                 else: #Not waiting on this player to select
                     await self.client.send_message(message.channel, "There is nothing to select for you right now, you aren't the president.")
 
             elif "Select Chancellor" in self.awaitingAction and message.author == self.president.user:
-                #set player with ID to chancellor, move to next phase
-                idInput = message.content.split(' ')[-1]
+                #set player with ID or Nickname to chancellor, move to next phase
+                splitIndex = message.content.index(' ')
+                idInput = message.content[splitIndex+1:]
                 found = False
                 for p in self.players.content:
-                    if p.user.id == idInput:
+                    if p.user.id == idInput or p.user.name == idInput:
                         await self.addEvent("Chancellor Selected")
                         found = True
                         self.chancellor = p
@@ -180,14 +190,15 @@ class shGame:
                         await self.callForAction(action)
 
                 if not found:
-                    await self.client.send_message(message.channel, "Copy a user's ID, then type 'select ######' here.")
+                    await self.client.send_message(message.channel, "Copy a user's ID or nickname, then type **select user#123** here.")
             else: #Not waiting on this player to select
                 await self.client.send_message(message.channel, "There is nothing to select for you right now.")
 
         # Awaiting president or chancellor discard
         elif message.content.startswith("discard"):
             if "President Discard" in self.awaitingAction and message.author == self.president.user:
-                input = message.content.split(' ')[1]
+                splitIndex = message.content.index(' ')
+                input = message.content[splitIndex+1:]
                 success = False
 
                 if str(input) == '1':
@@ -214,7 +225,8 @@ class shGame:
                     await self.revealPolicies("Chancellor")
 
             elif "Chancellor Discard" in self.awaitingAction and message.author == self.chancellor.user:
-                input = message.content.split(' ')[-1]
+                splitIndex = message.content.index(' ')
+                input = message.content[splitIndex+1:]
                 success = False
 
                 if str(input) == '1':
@@ -248,22 +260,21 @@ class shGame:
                         return True #at this point, the game ends
 
                     #shuffle pile if necessary
-                    msg = "There are {0} cards left in the draw pile. ".format(len(self.policyPile.content))
                     if len(self.policyPile.content) < 3:
                         self.policyPile.combine(self.discardPile)
-                        msg += "Therefore the pile will be shuffled now."
-                    await self.client.send_message(self.channel, msg)
+                        msg = "The discard pile will now be shuffled into the draw pile."
+                        await self.client.send_message(self.channel, msg)
 
                     #activate abilities, if a fascist policy was passed
                     if "Special" in self.awaitingAction:
                         if successfulTeam == "Fascist":
-                            await self.callForAction("Ability: SpecialExecution")
+                            await self.callForAction("Ability:SpecialExecution")
                         else: # successful team is Liberal - no ability activation
                             await self.resetGovernment(success)
                             await self.callForAction("Select Chancellor")
                     else:
                         if successfulTeam == "Fascist":
-                            await self.callForAction("Ability: " + self.abilitiesList[self.fascistPolicies-1])
+                            await self.callForAction("Ability:" + self.abilitiesList[self.fascistPolicies-1])
                         else: # successful team is Liberal - no ability activation
                             await self.resetGovernment(success)
                             await self.callForAction("Select Chancellor")
@@ -308,6 +319,13 @@ class shGame:
 
             """
             self.abilitiesList = ['Investigate', 'Investigate', 'SpecialElection', 'Execute', 'Execute', 'Nothing']
+
+    async def displayPowers(self):
+        msg = "These are the powers at play, which the president can use if they pass a Fascist policy:\n\t"
+        for power in self.abilitiesList:
+            msg += power + "\n\t"
+        self.client.send_message(self.channel, msg)
+
 
     #Presidential Powers
     async def policyPeek(self, player):
@@ -385,8 +403,9 @@ class shGame:
 
 
     async def resetGovernment(self, success):
+
         previousPresident = self.previousGovernment[0]
-        
+
         if success:
             self.previousGovernment = [self.president, self.chancellor]
             self.chaosTracker = 0
@@ -395,7 +414,7 @@ class shGame:
             await self.displayTracks()
             await self.checkGameOver()
 
-        if 'Special' in self.awaitingAction:
+        if 'Special' in self.awaitingAction: #there must have been a previous government
             self.president = previousPresident
 
         self.president = self.players.content[(self.players.content.index(self.president) + 1) % len(self.players.content)]
@@ -428,7 +447,6 @@ class shGame:
             self.awaitingAction = "None"
         else:
             return "Resume"
-
 
     async def checkVotes(self):
         for player in self.players.content:
@@ -466,7 +484,7 @@ class shGame:
     async def hitlerVictory(self):
         if self.hitler == self.chancellor and self.fascistPolicies > 2:
             # TODO: return True
-            return False
+            return True
 
 
     async def revealVotes(self):
@@ -509,9 +527,10 @@ class shGame:
         players = list(self.players.content) #create separate list of players
         while players != []:
             index = random.randint(0,len(players)-1)
-            if True: #len(self.fascists) < self.fascistsNumber:
+            #TODO: This allows me to be a fascist for testing ->
+            if len(self.fascists) < self.fascistsNumber:
                 players[index].team = "Fascist"
-                await self.client.send_message(players[index].user, "You are a Fascist")
+                # We'll tell the fascists what they are later in this function
                 self.fascists += [players.pop(index)]
 
             elif len(self.liberals) < self.liberalsNumber:
@@ -520,12 +539,19 @@ class shGame:
                 self.liberals += [players.pop(index)]
 
         # Choose hitler. First player was chosen at random, so this is random
-        msg = ""
-        for p in self.fascists:
-            msg += p.user.name
-        await self.client.send_message(self.channel, msg)
         self.hitler = self.fascists[0]
-        # self.hitler = self.fascists[random.randint(0,len(players)-1)]
+
+        # Tell fascists about their buddies
+        msg = "The fascists are:\n\t"
+        for p in self.fascists:
+            msg += p.user.name + '\n\t'
+        for p in [u for u in self.fascists if u != self.hitler]:
+            await self.client.send_message(p.user,"You are a Fascist.\n" +  msg)
+        # Only tell hitler who his allies are if there are
+        if self.fascistsNumber < 7:
+            await self.client.send_message(self.hitler.user, "You are Hitler.\n" + msg)
+        else:
+            await self.client.send_message(self.hitler.user, "You are Hitler. You have {0} other Fascist allies.".format(self.fascistNumber-1))
 
 
 
@@ -543,7 +569,7 @@ class shGame:
                 await self.client.send_message(message.channel, "The game is full or in progress, you are being added as a spectator.")
             overwrite = discord.PermissionOverwrite()
             overwrite.read_messages = True
-            overwrite.send_message = not self.inProgress
+            overwrite.send_message = True
             await self.client.edit_channel_permissions(self.channel, message.author, overwrite)
         else:
             await self.client.send_message(message.channel, "You are already in this game!")
@@ -582,9 +608,9 @@ class shGame:
 
 
     async def definePlayerRatios(self):
-        self.fascistsNumber = len(self.players.content) // 2 - 1
-        self.liberalsNumber = len(self.players.content) - self.fascistsNumber
-        # Randomly add a number of players to each team, according to these ratios
+        self.liberalsNumber = len(self.players.content) // 2 + 1
+        self.fascistsNumber = len(self.players.content) - self.liberalsNumber
+
 
 
     async def announceGame(self,message):
