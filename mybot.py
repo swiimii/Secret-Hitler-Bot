@@ -46,7 +46,9 @@ Notes:
 
     * One game per server!
 
-    * The I must be given the following permissions in order to work properly: Read/see channels, **manage channels**, **manage roles**, send messages. '''
+    * The I must be given the following permissions in order to work properly: Read/see channels, **manage channels**, **manage roles**, send messages.
+
+    * How to play Secret Hitler: https://www.ultraboardgames.com/secret-hitler/game-rules.php'''
         await client.send_message(message.channel, msg)
 
     # Start a game

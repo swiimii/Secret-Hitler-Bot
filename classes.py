@@ -95,6 +95,7 @@ class shGame:
 
     async def callForAction(self, reason):
         #call a vote in self.channel according to reason
+        await self.addEvent(self.awaitingAction)
         self.awaitingAction = reason
 
         # Actions taken during elections and special elections
@@ -115,7 +116,7 @@ class shGame:
             await self.callForAction("Select Chancellor")
 
         elif reason == "Ability:PolicyPeek":
-            await self.client.send_message(self.channel, "--------------------\n{0.mention} has been DM'd a list of the top three cards in the policy pile. ".format(self.president.user))
+            await self.client.send_message(self.channel, "--------------------\nPolicy Peek Power! {0.mention} has been DM'd a list of the top three cards in the policy pile. ".format(self.president.user))
             # Policy peek requires no action, however other abilities do. This allows for abilities to be used as a list
             await self.policyPeek(False)
 
@@ -142,10 +143,12 @@ class shGame:
                 if "y" in message.content or "Y" in message.content:
                     player.vote = 'y'
                     await self.client.send_message(message.channel, "Yes Vote received")
+                    await self.client.send_message(self.channel, "{0} has voted.".format(player.user.name))
                     await self.checkVotes()
                 elif "n" in message.content or "N" in message.content:
                     player.vote = 'n'
                     await self.client.send_message(message.channel, "No Vote received")
+                    await self.client.send_message(self.channel, "{0} has voted.".format(player.user.name))
                     await self.checkVotes()
                 else:
                     await self.client.send_message(message.channel, "Vote on this government by typing **vote yes** or **vote no**.")
@@ -162,7 +165,7 @@ class shGame:
                     found = False
                     for p in self.players.content:
                         if p.user.id == idInput or p.user.name == idInput:
-                            abilityName = self.awaitingAction.split(' ')[1]
+                            abilityName = self.awaitingAction.split(' ')[1] # Figure out what ability is being completed
                             await self.addEvent("Ability:" + abilityName)
                             found = True
                             ability = self.ablilitiesDict[abilityName]
@@ -181,6 +184,10 @@ class shGame:
                 found = False
                 for p in self.players.content:
                     if p.user.id == idInput or p.user.name == idInput:
+                        # TODO: Add this for 5+ players
+                        # if p.user in self.previousGovernment:
+                            # await send_message(message.channel, "This person was in the last governmnet. Select a different player!")
+                        # else:
                         await self.addEvent("Chancellor Selected")
                         found = True
                         self.chancellor = p
@@ -255,9 +262,6 @@ class shGame:
                     #check if game is over
                     await self.displayTracks()
                     await self.checkGameOver()
-                    if self.awaitingAction == "none":
-                        await self.client.send_message(self.channel, progressMessage + " Start a new game by typing **sh-start**.")
-                        return True #at this point, the game ends
 
                     #shuffle pile if necessary
                     if len(self.policyPile.content) < 3:
@@ -278,6 +282,13 @@ class shGame:
                         else: # successful team is Liberal - no ability activation
                             await self.resetGovernment(success)
                             await self.callForAction("Select Chancellor")
+
+    async def endGame(self, msg):
+
+        await self.callForAction("none")
+        msg = msg + "\nStart a new game by typing **sh-start**."
+        await self.client.send_message(self.channel, msg)
+        self.inProgress = False;
 
 
 
@@ -352,9 +363,7 @@ class shGame:
         self.players.content.remove(player)
         #check if game over
         if self.hitler == player:
-            self.inProgress = False
-            self.awaitingAction = "None"
-            await self.client.send_message(self.channel, "**Hitler has been killed! Liberals Win!** Start a new game by typing **sh-start**.")
+            await self.endGame("**Hitler has been killed! Liberals Win!**")
         else:
             await self.resetGovernment(True)
             await self.callForAction("Select Chancellor")
@@ -366,7 +375,7 @@ class shGame:
         if self.hitler == player:
             self.inProgress = False
             self.awaitingAction = "None"
-            await self.client.send_message(self.channel, "**Hitler has been killed! Liberals Win!** Start a new game by typing **sh-start**.")
+            await self.endGame("**Hitler has been killed! Liberals Win!**")
         else:
             previousPresIndex = players.index(self.previousGovernment[0])
             await self.resetGovernment(True)
@@ -433,20 +442,19 @@ class shGame:
     async def displayTracks(self):
         msg = "There are now {0}/{1} liberal policies, and {2}/{3} fascist policies. \nThe chaos tracker is at {4}".format(self.liberalPolicies, self.maxLiberals, self.fascistPolicies, self.maxFascists, self.chaosTracker)
         msg += "\nThere are {0} cards in the draw pile, and {1} cards in the discard pile.".format(len(self.policyPile.content), len(self.discardPile.content))
+        if self.fascistPolicies >= 3:
+            msg += "\n**DANGER:** If Hitler is elected as Chancellor, Fascists win!"
         await self.client.send_message(self.channel, msg)
 
     async def checkGameOver(self):
         if self.hitler in self.deadPlayers:
-            self.inProgress = False
-            self.awaitingAction = "None"
+            await self.endGame("**Hitler has been killed!**")
         elif self.liberalPolicies >= self.maxLiberals:
-            self.inProgress = False
-            self.awaitingAction = "None"
+            await self.endGame("**All needed Liberal policies have been passed! Liberals win!**")
         elif self.fascistPolicies >= self.maxFascists:
-            self.inProgress = False
-            self.awaitingAction = "None"
+            await self.endGame("**6 Fascist policies have been passed! Fascists win")
         else:
-            return "Resume"
+            return False
 
     async def checkVotes(self):
         for player in self.players.content:
@@ -469,7 +477,7 @@ class shGame:
         #Players only vote on governments
         if success:
             if await self.hitlerVictory():
-                await self.client.send_message(self.channel,"Fascists Win! {0.mention} is a Hitler Chancellor after 3 Fascist policies were passed! \nStart a new game by typing **sh-start**.".format(self.chancellor.user))
+                await self.endGame("**{0.mention} is a Hitler Chancellor after 3 Fascist policies were passed! Fascists Win!**")
                 self.awaitingAction = 'none'
                 self.inProgress = False
                 return True #at thie point, the game ends
@@ -528,7 +536,7 @@ class shGame:
         while players != []:
             index = random.randint(0,len(players)-1)
             #TODO: This allows me to be a fascist for testing ->
-            if len(self.fascists) < self.fascistsNumber:
+            if True: #len(self.fascists) < self.fascistsNumber:
                 players[index].team = "Fascist"
                 # We'll tell the fascists what they are later in this function
                 self.fascists += [players.pop(index)]
