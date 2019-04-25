@@ -7,12 +7,15 @@ class shGame:
     gameTimeout = 420 # time before a game will be caught by cleanup -- 6 minutes
 
     def __init__(self,client,message, gamechannel):
-        #server instance variables
+
+        # server-related instance variables
         self.inProgress = False
         self.channel = gamechannel
         self.server = message.server
+        self.client = client
 
-        #game instance variables
+
+        # game-related instance variables
         self.players = Pile([Player(message.author, self)])
         self.fascists = []
         self.liberals = []
@@ -22,7 +25,6 @@ class shGame:
         self.chancellor = "none"
         self.previousGovernment = ['none', 'none']
         self.votes = "none"
-        self.governmentApproved = False
         self.awaitingAction = "Begin Game" #Very important - This variable allows the code below to know what aspect of the game is currently taking place
 
         # Dictionary of abilities, independent of number of players
@@ -38,7 +40,6 @@ class shGame:
         self.discardPile = Pile()
         shGame.gameServers += [self]
         self.events = [("Game Created", time.time())]
-        self.client = client
 
     async def createGame(client,message):
 
@@ -189,16 +190,19 @@ class shGame:
                 for p in self.players.content:
                     if p.user.id == idInput or p.user.name == idInput:
                         # TODO: Add this for 5+ players
-                        # if p.user in self.previousGovernment:
-                            # await send_message(message.channel, "This person was in the last governmnet. Select a different player!")
-                        # else:
-                        await self.addEvent("Chancellor Selected")
-                        found = True
-                        self.chancellor = p
-                        action = "Vote On Government"
-                        if "Special" in self.awaitingAction:
-                            action = "Special: " + action
-                        await self.callForAction(action)
+                        if p is self.president:
+                            await send_message(message.channel, "You can't select yourself as chancellor!")
+                        else if p.user in self.previousGovernment:
+                            await send_message(message.channel, "This person was in the last government. Select a different player!")
+
+                        else:
+                            await self.addEvent("Chancellor Selected")
+                            found = True
+                            self.chancellor = p
+                            action = "Vote On Government"
+                            if "Special" in self.awaitingAction:
+                                action = "Special: " + action
+                            await self.callForAction(action)
 
                 if not found:
                     await self.client.send_message(message.channel, "Copy a user's ID or nickname, then type **select user#123** here.")
@@ -433,9 +437,12 @@ class shGame:
         self.president = self.players.content[(self.players.content.index(self.president) + 1) % len(self.players.content)]
         self.chancellor = 'none'
 
+    #called when the Chaos Tracker >= 3
     async def chaos(self):
         self.chaosTracker = 0
         successfulTeam = self.policyPile.content.pop(0).team
+        self.previousGovernment = ['none', 'none']
+
         if successfulTeam == "Liberal":
             self.liberalPolicies += 1
         else: # Fascist

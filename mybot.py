@@ -60,10 +60,10 @@ Notes:
         game = await shGame.getGame(message)
         if game and message.channel == game.channel and message.author in [player.user for player in game.players.content]:
             #TODO: ->
-            #if len(game.players.content) > 4:
-            await game.startGame()
-            #else:
-                #await client.send_message(message.channel, "5 player minimum for a game")
+            if len(game.players.content) > 4:
+                await game.startGame()
+            else:
+                await client.send_message(message.channel, "5 player minimum for a game")
 
     # Clean up empty servers, to allow the start of a new game
     if message.content.startswith('sh-cleanup'):
