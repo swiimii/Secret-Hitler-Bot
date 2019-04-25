@@ -8,5 +8,5 @@ The bot must be given the following permissions in-server in order to work prope
     Read/see channels (enabled by default),
     send messages (enabled by default),
     **manage channels,** 
-    **manage roles,** 
+    **manage roles.** 
     
