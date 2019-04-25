@@ -1,5 +1,6 @@
 import discord
 from classes import shGame, Pile, Player, Policy
+from keyHider import KeyHider
 
 client = discord.Client()
 
@@ -123,4 +124,7 @@ async def on_ready():
     print(client.user.id)
     print('------')
 
-client.run('NTYyNDAwODUyMzY3OTAwNjg0.XKKPVA.DVtDmn-n_kzNcEEO9BeMKJX_WtA')  # 'Token'
+# Since people often scrape github for discord bot tokens, I'm using a function to hide the key
+# If you are using this code, place the "KeyHider" function with your key, unless uploaded publicly.
+# My token has been updated since I last pushed to github
+client.run(KeyHider())  # 'Token'
