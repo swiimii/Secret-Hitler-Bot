@@ -196,13 +196,13 @@ class shGame:
                             await send_message(message.channel, "This person was in the last government. Select a different player!")
 
                         else:
-                            await self.addEvent("Chancellor Selected")
-                            found = True
-                            self.chancellor = p
-                            action = "Vote On Government"
-                            if "Special" in self.awaitingAction:
-                                action = "Special: " + action
-                            await self.callForAction(action)
+                        await self.addEvent("Chancellor Selected")
+                        found = True
+                        self.chancellor = p
+                        action = "Vote On Government"
+                        if "Special" in self.awaitingAction:
+                            action = "Special: " + action
+                        await self.callForAction(action)
 
                 if not found:
                     await self.client.send_message(message.channel, "Copy a user's ID or nickname, then type **select user#123** here.")
@@ -250,8 +250,7 @@ class shGame:
                 elif str(input) == '2':
                     self.discardPile.content += [self.policyPile.content.pop(1)]
                     success = True
-                elif str(input).toLower() == 'veto' and self.fascistPolicies - self.maxFascists == 1:
-                    self.callForAction("Veto")
+
 
 
 
@@ -290,6 +289,14 @@ class shGame:
                         else: # successful team is Liberal - no ability activation
                             await self.resetGovernment(success)
                             await self.callForAction("Select Chancellor")
+        elif message.content.toLower().startswith("veto") and message.author == chancellor.user and "Chancellor Discard" in self.awaitingAction:
+            if self.fascistPolicies - self.maxFascists == 1:
+                self.callForAction("Veto")
+            else:
+                await send_message(message.channel, "Veto is only available when only one card remains until the Fascists win.")
+
+
+
 
     async def endGame(self, msg):
 
@@ -488,7 +495,7 @@ class shGame:
         #Players only vote on governments
         if success:
             if await self.hitlerVictory():
-                await self.endGame("**{0.mention} is a Hitler Chancellor after 3 Fascist policies were passed! Fascists Win!**")
+                await self.endGame("**{0.mention} is a Hitler Chancellor after 3 Fascist policies were passed! Fascists Win!**".format(self.hitler.user))
                 self.awaitingAction = 'none'
                 self.inProgress = False
                 return True #at thie point, the game ends
@@ -547,7 +554,7 @@ class shGame:
         while players != []:
             index = random.randint(0,len(players)-1)
             #TODO: This allows me to be a fascist for testing ->
-            if True: #len(self.fascists) < self.fascistsNumber:
+            if len(self.fascists) < self.fascistsNumber:
                 players[index].team = "Fascist"
                 # We'll tell the fascists what they are later in this function
                 self.fascists += [players.pop(index)]

@@ -18,8 +18,7 @@ async def on_message(message):
     #             msg += player.name
     #     await client.send_message(message.channel, msg)
 
-    # Check if the bot is working ---- Switch to "help" function?
-    if message.channel.type == discord.ChannelType.private:
+    elif message.channel.type == discord.ChannelType.private:
         # User sent a private command to the bot
         for game in shGame.gameServers:
             for player in [game.players.content[i] for i in range(0,len(game.players.content)) if game.players.content[i].user == message.author]:
@@ -31,7 +30,7 @@ async def on_message(message):
         # else:
             # await client.send_message(message.channel, "It appears you're not in a game. Once you're in a game, private message me in order to vote, among other things.")
 
-    if message.content.startswith('sh-help'):
+    elif message.content.startswith('sh-help'):
         msg = '''Welcome to Secret Hitler!\nCommands:
     **sh-start**: Start a game
     **sh-cleanup**: end current game (admin)
@@ -53,10 +52,10 @@ Notes:
         await client.send_message(message.channel, msg)
 
     # Start a game
-    if message.content.startswith('sh-start'):
+    elif message.content.startswith('sh-start'):
         await shStart(message)
 
-    if message.content.startswith('sh-begin'):
+    elif message.content.startswith('sh-begin'):
         game = await shGame.getGame(message)
         if game and message.channel == game.channel and message.author in [player.user for player in game.players.content]:
             #TODO: ->
@@ -66,24 +65,24 @@ Notes:
                 await client.send_message(message.channel, "5 player minimum for a game")
 
     # Clean up empty servers, to allow the start of a new game
-    if message.content.startswith('sh-cleanup'):
+    elif message.content.startswith('sh-cleanup'):
         if message.author.server_permissions.administrator:
             await shGame.shCleanup(client,message)
             game = False
         else: # User is not an admin
             await client.send_message(message.channel, "You need admin permissions to do this.")
 
-    if message.content.startswith('sh-players'):
+    elif message.content.startswith('sh-players'):
         game = await shGame.getGame(message)
         if game:
             await displayPlayers(message)
 
-    if message.content.startswith('sh-join'):
+    elif message.content.startswith('sh-join'):
         game = await shGame.getGame(message)
         if game:
             await game.addPlayer(message)
 
-    if message.content.startswith('sh-leave'):
+    elif message.content.startswith('sh-leave'):
         game = await shGame.getGame(message)
         if game:
             await game.removePlayer(message)
@@ -109,7 +108,7 @@ async def displayPlayers(message):
         if game.players.content is not []:
             msg = 'The players are'
             for player in game.players.content:
-                msg += ", " + player.user.name
+                msg += ", \n\t**" + player.user.name + "**"
             msg += '.'
             await client.send_message(message.channel, msg)
         else:
@@ -125,6 +124,6 @@ async def on_ready():
     print('------')
 
 # Since people often scrape github for discord bot tokens, I'm using a function to hide the key
-# If you are using this code, place the "KeyHider" function with your key, unless uploaded publicly.
+# If you are using this code, replace the "KeyHider" function with your key, unless uploaded publicly.
 # My token has been updated since I last pushed to github
 client.run(KeyHider())  # 'Token'
