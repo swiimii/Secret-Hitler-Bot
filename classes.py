@@ -192,7 +192,7 @@ class shGame:
                         # TODO: Add this for 5+ players
                         if p is self.president:
                             await send_message(message.channel, "You can't select yourself as chancellor!")
-                        else if p.user in self.previousGovernment:
+                        elif p.user in self.previousGovernment:
                             await send_message(message.channel, "This person was in the last government. Select a different player!")
 
                         else:
