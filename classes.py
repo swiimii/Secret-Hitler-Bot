@@ -67,7 +67,11 @@ class shGame:
         thisGame.policyPile.shuffle()
 
         #announce game in the channel where a player started the game. If the channel was deleted (via shCleanup), an exception will be raised, but the game will still be playable.
-        await thisGame.announceGame(message)
+        try:
+            await thisGame.announceGame(message)
+        except:
+            print("Channel not found - announcement message not sent.\nThis is likely because the game was started from a previous sh-game channel.")
+
 
     async def addEvent(self, event):
         self.events += [(event, time.time())]
