@@ -1,6 +1,6 @@
 # Secret-Hitler-Bot
 
-A bot which allows users to play secret hitler.
+A Discord bot which allows users in a server to play Secret Hitler.
 
 # Before use:
 Insert your bot token at the bottom of the myBot.py file.
