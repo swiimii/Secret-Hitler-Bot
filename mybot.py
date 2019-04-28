@@ -1,3 +1,5 @@
+import pkg_resources
+pkg_resources.require("discord==0.16.12")
 import discord
 from classes import shGame, Pile, Player, Policy
 from keyHider import KeyHider
