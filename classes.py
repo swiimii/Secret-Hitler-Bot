@@ -1,3 +1,5 @@
+import pkg_resources
+pkg_resources.require("discord==0.16.12")
 import discord
 import random
 import time
@@ -166,11 +168,11 @@ class shGame:
             if "Ability:" in self.awaitingAction:
                 if message.author == self.president.user:
                     splitIndex = message.content.index(' ')
-                    idInput = message.content[splitIndex+1:]
+                    idInput = message.content[splitIndex+1:] #truncates "select " from the beginning of the message
                     found = False
                     for p in self.players.content:
                         if p.user.id == idInput or p.user.name == idInput:
-                            abilityName = self.awaitingAction.split(' ')[1] # Figure out what ability is being completed
+                            abilityName = self.awaitingAction.split(':')[1] # Figure out what ability is being completed
                             await self.addEvent("Ability:" + abilityName)
                             found = True
                             ability = self.ablilitiesDict[abilityName]
@@ -196,13 +198,13 @@ class shGame:
                             await send_message(message.channel, "This person was in the last government. Select a different player!")
 
                         else:
-                        await self.addEvent("Chancellor Selected")
-                        found = True
-                        self.chancellor = p
-                        action = "Vote On Government"
-                        if "Special" in self.awaitingAction:
-                            action = "Special: " + action
-                        await self.callForAction(action)
+                            await self.addEvent("Chancellor Selected")
+                            found = True
+                            self.chancellor = p
+                            action = "Vote On Government"
+                            if "Special" in self.awaitingAction:
+                                action = "Special: " + action
+                            await self.callForAction(action)
 
                 if not found:
                     await self.client.send_message(message.channel, "Copy a user's ID or nickname, then type **select user#123** here.")
@@ -264,7 +266,8 @@ class shGame:
                     elif self.policyPile.content[0].team == "Liberal":
                         self.liberalPolicies += 1
 
-                    successfulTeam = self.policyPile.content.pop(0).team # This policy is now considered part of the board
+                    # This policy is now considered part of the board
+                    successfulTeam = self.policyPile.content.pop(0).team
 
                     #check if game is over
                     await self.displayTracks()
@@ -366,7 +369,9 @@ class shGame:
         return #Does nothing. Placeholder in AbilityList
 
     async def investigate(self, player):
-        await self.send_message(self.president.user, "{0} is a {1}.".format(player.user, player.team))
+        await self.client.send_message(self.president.user, "{0} is a {1}.".format(player.user, player.team))
+        await self.resetGovernment(True)
+        await self.callForAction("Select Chancellor")
 
     async def specialElection(self, player):
         await self.resetGovernment(True)
