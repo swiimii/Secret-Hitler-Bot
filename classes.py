@@ -1,5 +1,4 @@
-import pkg_resources
-pkg_resources.require("discord==0.16.12")
+
 import discord
 import random
 import time
@@ -576,11 +575,15 @@ class shGame:
         msg = "The fascists are:\n\t"
         for p in self.fascists:
             msg += p.user.name + '\n\t'
+        msg = "You are a Fascist.\n{0} is Hitler.\n".format(self.hitler.user) +  msg
+
+        # Send fascist informative message
         for p in [u for u in self.fascists if u != self.hitler]:
-            await self.client.send_message(p.user,"You are a Fascist.\n" +  msg)
-        # Only tell hitler who his allies are if there are
+            await self.client.send_message(p.user, msg)
+
+        # Only tell hitler who his allies are if there are 5-6 players
         if self.fascistsNumber < 7:
-            await self.client.send_message(self.hitler.user, "You are Hitler.\n" + msg)
+            await self.client.send_message(self.hitler.user, msg)
         else:
             await self.client.send_message(self.hitler.user, "You are Hitler. You have {0} other Fascist allies.".format(self.fascistNumber-1))
 
