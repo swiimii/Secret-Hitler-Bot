@@ -20,6 +20,8 @@ Notes:
 
 * I (the bot) must be given the following permissions, on a per-server basis, in order to work properly: Read/see channels, **manage channels**, **manage roles**, send messages.
 
-* How to play Secret Hitler: https://www.ultraboardgames.com/secret-hitler/game-rules.php'''
+* How to play Secret Hitler: https://www.ultraboardgames.com/secret-hitler/game-rules.php
+
+* How to host on Google Cloud (and access instance in google cloud once that instance is created) '''
 
     
