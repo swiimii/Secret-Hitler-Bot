@@ -11,6 +11,7 @@ The bot must be given the following permissions in-server in order to work prope
     **manage roles.** 
     
 Notes:
+* This bot uses the old version of the Discord API. Try installing with version discord.py==0.16.12
 
 * The sh-game class contains a timeout variable. Change this in order to allow non-admin users to restart the game after players have been afk for a duration longer than said variable, in seconds.
 
